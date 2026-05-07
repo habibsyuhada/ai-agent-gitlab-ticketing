@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, FileSpreadsheet, Settings, Info, Play, Download, Cpu, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { Upload, FileSpreadsheet, Settings, Info, Play, Download, Cpu, AlertTriangle, GitBranch } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function HomePage() {
@@ -120,6 +121,13 @@ export default function HomePage() {
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs">
+            <Link
+              href="/gitlab"
+              className="flex items-center gap-2 hover:text-[var(--color-amber)] transition-colors"
+            >
+              <GitBranch className="w-3 h-3" />
+              GITLAB IMPORT
+            </Link>
             <span className="flex items-center gap-2">
               <span className="status-dot active"></span>
               SYSTEM READY
