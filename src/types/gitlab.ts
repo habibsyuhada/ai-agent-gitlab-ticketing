@@ -65,6 +65,15 @@ export interface GitLabCommit {
   last_pipeline: any;
 }
 
+export interface GitLabCompareResponse {
+  commit: GitLabCommit;
+  commits: GitLabCommit[];
+  diffs: any[];
+  compare_timeout: boolean;
+  compare_same_ref: boolean;
+  web_url: string;
+}
+
 export interface GitLabParseRequest {
   fromDate: string;
   toDate: string;

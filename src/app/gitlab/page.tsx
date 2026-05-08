@@ -36,9 +36,13 @@ export default function GitLabImportPage() {
         const data = await response.json();
         setUsers(data);
 
-        const habibUser = data.find((u: GitLabUser) => u.name === 'Habib Syuhada');
-        if (habibUser) {
-          setSelectedUsers([{ value: habibUser.id, label: habibUser.name }]);
+        const defaultUsers = ['Habib Syuhada', 'Mohammad Fahmi Aziz', 'iqbal'];
+        const selectedDefaults = data
+          .filter((u: GitLabUser) => defaultUsers.includes(u.name))
+          .map((u: GitLabUser) => ({ value: u.id, label: u.name }));
+
+        if (selectedDefaults.length > 0) {
+          setSelectedUsers(selectedDefaults);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load users');

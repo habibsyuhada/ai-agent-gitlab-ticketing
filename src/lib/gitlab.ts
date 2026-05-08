@@ -1,4 +1,4 @@
-import { GitLabUser, GitLabEvent, GitLabCommit } from '@/types/gitlab';
+import { GitLabUser, GitLabEvent, GitLabCommit, GitLabCompareResponse } from '@/types/gitlab';
 import { TicketRow } from '@/types/ticket';
 
 const GITLAB_BASE_URL = process.env.GITLAB_BASE_URL || 'http://10.5.255.167:9000';
@@ -34,21 +34,36 @@ export async function fetchUserEvents(
   after: string,
   before: string
 ): Promise<GitLabEvent[]> {
-  const url = new URL(`${GITLAB_API_URL}/users/${userId}/events`);
-  url.searchParams.append('action', 'pushed');
-  url.searchParams.append('per_page', '50');
-  url.searchParams.append('after', after);
-  url.searchParams.append('before', before);
+  const allEvents: GitLabEvent[] = [];
+  let page = 1;
 
-  const response = await fetch(url.toString(), {
-    headers: getHeaders(),
-  });
+  while (true) {
+    const url = new URL(`${GITLAB_API_URL}/users/${userId}/events`);
+    url.searchParams.append('action', 'pushed');
+    url.searchParams.append('per_page', '50');
+    url.searchParams.append('after', after);
+    url.searchParams.append('before', before);
+    url.searchParams.append('page', String(page));
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch events for user ${userId}: ${response.statusText}`);
+    const response = await fetch(url.toString(), {
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch events for user ${userId} (page ${page}): ${response.statusText}`);
+    }
+
+    const events: GitLabEvent[] = await response.json();
+
+    if (events.length === 0) {
+      break;
+    }
+
+    allEvents.push(...events);
+    page++;
   }
 
-  return response.json();
+  return allEvents;
 }
 
 export async function fetchCommit(
@@ -71,6 +86,29 @@ export async function fetchCommit(
   return response.json();
 }
 
+export async function fetchCompareCommits(
+  projectId: number,
+  from: string,
+  to: string
+): Promise<GitLabCommit[]> {
+  const url = new URL(`${GITLAB_API_URL}/projects/${projectId}/repository/compare`);
+  url.searchParams.append('from', from);
+  url.searchParams.append('to', to);
+
+  const response = await fetch(url.toString(), {
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch compare for project ${projectId} (${from}...${to}): ${response.statusText}`
+    );
+  }
+
+  const data: GitLabCompareResponse = await response.json();
+  return data.commits;
+}
+
 export function parseCommitMessage(message: string): string[] {
   const lines = message.split('\n');
   const bulletLines: string[] = [];
@@ -91,25 +129,28 @@ export async function generateTicketsFromCommits(
   const tickets: TicketRow[] = [];
 
   for (const event of events) {
-    const { push_data, project_id, author } = event;
+    const { push_data, project_id } = event;
 
     if (!push_data || !project_id) continue;
 
-    const commitTitle = push_data.commit_title;
-
-    if (commitTitle && commitTitle.startsWith('Merge branch')) {
-      continue;
-    }
-
-    const commitSha = push_data.commit_to;
-    if (!commitSha) continue;
+    const { commit_from, commit_to } = push_data;
+    if (!commit_from || !commit_to) continue;
 
     try {
-      const commit = await fetchCommit(project_id, commitSha);
-      const bulletLines = parseCommitMessage(commit.message);
+      const commits = await fetchCompareCommits(project_id, commit_from, commit_to);
 
-      if (bulletLines.length === 0) {
-      } else {
+      for (const commit of commits) {
+        // Skip merge commits
+        if (commit.title.startsWith('Merge branch')) {
+          continue;
+        }
+
+        const bulletLines = parseCommitMessage(commit.message);
+
+        if (bulletLines.length === 0) {
+          continue;
+        }
+
         for (const bulletLine of bulletLines) {
           tickets.push({
             type: 'Task',
@@ -127,7 +168,7 @@ export async function generateTicketsFromCommits(
       }
     } catch (error) {
       console.error(
-        `Failed to fetch commit ${commitSha} for project ${project_id}:`,
+        `Failed to fetch compare for project ${project_id} (${commit_from}...${commit_to}):`,
         error
       );
     }
