@@ -127,6 +127,7 @@ export async function generateTicketsFromCommits(
   events: GitLabEvent[]
 ): Promise<TicketRow[]> {
   const tickets: TicketRow[] = [];
+  const seenCommitIds = new Set<string>();
 
   for (const event of events) {
     const { push_data, project_id } = event;
@@ -140,6 +141,10 @@ export async function generateTicketsFromCommits(
       const commits = await fetchCompareCommits(project_id, commit_from, commit_to);
 
       for (const commit of commits) {
+        // Skip duplicate commits
+        if (seenCommitIds.has(commit.id)) continue;
+        seenCommitIds.add(commit.id);
+
         // Skip merge commits
         if (commit.title.startsWith('Merge branch')) {
           continue;
@@ -162,7 +167,7 @@ export async function generateTicketsFromCommits(
             Project: 'Overhead',
             Description: `${commit.title} - ${bulletLine}`,
             Priority: 'Medium',
-            Assign: commit.author_name,
+            Assign: event.author.name,
           });
         }
       }

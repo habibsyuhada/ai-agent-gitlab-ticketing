@@ -310,11 +310,11 @@ export default function PreviewPage() {
                     <td className="px-3 py-2 font-mono truncate max-w-[60px]">{row.Department || '-'}</td>
                     <td className="px-3 py-2 font-mono truncate max-w-[60px]">{row.Location || '-'}</td>
                     <td className="px-3 py-2 font-mono truncate max-w-[60px]">{row.Project || '-'}</td>
-                    <td className="px-3 py-2 font-mono truncate max-w-[150px]" title={row.Description}>
+                    <td className="px-3 py-2 font-mono" title={row.Description}>
                       {row.Description || '-'}
                     </td>
                     <td className="px-3 py-2 font-mono truncate max-w-[60px]">{row.Priority || '-'}</td>
-                    <td className="px-3 py-2 font-mono truncate max-w-[80px]">{row.Assign || '-'}</td>
+                    <td className="px-3 py-2 font-mono">{row.Assign || '-'}</td>
                     <td className="px-3 py-2 text-[var(--color-error)] font-mono text-[10px]">
                       {row.validationResult.missingFields.join(', ') || '-'}
                     </td>
