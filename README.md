@@ -2,6 +2,9 @@
 
 A Next.js application that turns GitLab activity or Excel rows into helpdesk tickets, then automates ticket creation and optional ticket solving through Playwright. The helpdesk portal URL is configured through environment variables, so no portal host is hardcoded in the application.
 
+## Screenshot
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/a49c5346-de8a-4d30-80e0-9af69f8dba49" />
+
 ## Features
 
 - Import tickets from Excel files.
