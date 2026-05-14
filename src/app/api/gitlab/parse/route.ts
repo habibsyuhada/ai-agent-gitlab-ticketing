@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { GitLabParseRequest } from '@/types/gitlab';
 import {
   fetchUserEvents,
-  generateTicketsFromCommits,
+  generateTicketsFromCommitsWithMode,
   adjustDate,
 } from '@/lib/gitlab';
 import { validateTicketRow } from '@/lib/validation';
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { fromDate, toDate, userIds } = body as GitLabParseRequest;
+    const { fromDate, toDate, userIds, useAI } = body as GitLabParseRequest & { useAI?: boolean };
 
     if (!fromDate || !toDate || !userIds || !Array.isArray(userIds)) {
       return NextResponse.json(
@@ -45,17 +45,22 @@ export async function POST(request: NextRequest) {
     const beforeDate = adjustDate(toDateObj, 1);
 
     const allEvents: any[] = [];
+    const failedUsers: { userId: number; error: string }[] = [];
+    const successUsers: number[] = [];
 
     for (const userId of userIds) {
       try {
         const events = await fetchUserEvents(userId, afterDate, beforeDate);
         allEvents.push(...events);
+        successUsers.push(userId);
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`Failed to fetch events for user ${userId}:`, error);
+        failedUsers.push({ userId, error: errorMessage });
       }
     }
 
-    const tickets = await generateTicketsFromCommits(allEvents);
+    const tickets = await generateTicketsFromCommitsWithMode(allEvents, !!useAI);
 
     const parsedTickets: ParsedTicket[] = tickets.map((ticket, index) => {
       const validationResult = validateTicketRow(ticket);
@@ -78,7 +83,11 @@ export async function POST(request: NextRequest) {
           total: parsedTickets.length,
           valid: validRows.length,
           invalid: invalidRows.length,
+          requestedUsers: userIds.length,
+          successUsers: successUsers.length,
+          failedUsers: failedUsers.length,
         },
+        failedUsers,
       },
     });
   } catch (error) {

@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Calendar, Play, AlertTriangle, Cpu, Settings } from 'lucide-react';
+import { ArrowLeft, Users, Calendar, Play, AlertTriangle, Cpu, Settings, Bot, CheckCheck } from 'lucide-react';
 import Select, { MultiValue } from 'react-select';
 import { cn } from '@/lib/utils';
 import { GitLabUser } from '@/types/gitlab';
@@ -21,6 +21,8 @@ export default function GitLabImportPage() {
     dryRun: true,
     headless: false,
     delayMs: 3000,
+    useAI: false,
+    solveAfterInsert: false,
   });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +86,7 @@ export default function GitLabImportPage() {
           fromDate,
           toDate,
           userIds: selectedUsers.map((u) => u.value),
+          useAI: options.useAI,
         }),
       });
 
@@ -94,6 +97,9 @@ export default function GitLabImportPage() {
       }
 
       sessionStorage.setItem('parsedData', JSON.stringify(result.data));
+      if (result.failedUsers && result.failedUsers.length > 0) {
+        sessionStorage.setItem('failedUsers', JSON.stringify(result.failedUsers));
+      }
       sessionStorage.setItem('automationOptions', JSON.stringify(options));
       window.location.href = '/preview';
     } catch (err) {
@@ -291,6 +297,38 @@ export default function GitLabImportPage() {
               />
             </div>
 
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-xs font-display block">AI MODE</label>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                  Use AI to transform commit messages
+                </p>
+              </div>
+              <button
+                onClick={() => setOptions({ ...options, useAI: !options.useAI })}
+                className={cn(
+                  "toggle-switch",
+                  options.useAI && "active"
+                )}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-xs font-display block">AUTO SOLVE</label>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                  Solve tickets after insert (On Process → Solved)
+                </p>
+              </div>
+              <button
+                onClick={() => setOptions({ ...options, solveAfterInsert: !options.solveAfterInsert })}
+                className={cn(
+                  "toggle-switch",
+                  options.solveAfterInsert && "active"
+                )}
+              />
+            </div>
+
             <div>
               <label className="text-xs font-display block mb-2">
                 DELAY BETWEEN TICKETS
@@ -318,6 +356,8 @@ export default function GitLabImportPage() {
             <div className="text-xs">
               <p className="text-[var(--color-text-muted)]">
                 READY TO IMPORT // {options.dryRun ? 'DRY RUN' : 'LIVE'}
+                {options.useAI ? ' // AI MODE' : ''}
+                {options.solveAfterInsert ? ' // AUTO SOLVE' : ''}
               </p>
               <p className="font-display">
                 {selectedUsers.length > 0
@@ -352,3 +392,4 @@ export default function GitLabImportPage() {
     </div>
   );
 }
+

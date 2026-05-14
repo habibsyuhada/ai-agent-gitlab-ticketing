@@ -1,4 +1,4 @@
-export interface TicketRow {
+﻿export interface TicketRow {
   type: string;
   Category: string;
   Requestor: string;
@@ -30,6 +30,8 @@ export interface AutomationOptions {
   dryRun: boolean;
   headless: boolean;
   delayMs: number;
+  useAI?: boolean;
+  solveAfterInsert?: boolean;
   startRow?: number;
   endRow?: number;
 }
@@ -44,9 +46,13 @@ export interface AutomationResult {
   startTime: string;
   endTime: string;
   duration: number;
+  solveSuccessCount?: number;
+  solveFailedCount?: number;
+  solveNotFoundCount?: number;
 }
 
 export interface SelectOption {
   value: string;
   label: string;
 }
+

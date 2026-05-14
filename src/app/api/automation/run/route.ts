@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { runHelpdeskAutomation } from '@/lib/helpdesk-rpa';
 import { createLogger } from '@/lib/logger';
 import { ParsedTicket, AutomationOptions } from '@/types/ticket';
@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
       successCount: result.successCount,
       failedCount: result.failedCount,
       skippedCount: result.skippedCount,
+      solveSuccessCount: result.solveSuccessCount,
+      solveFailedCount: result.solveFailedCount,
       duration: result.duration,
     });
 

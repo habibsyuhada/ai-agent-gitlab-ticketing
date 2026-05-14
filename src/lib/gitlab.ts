@@ -1,5 +1,6 @@
-import { GitLabUser, GitLabEvent, GitLabCommit, GitLabCompareResponse } from '@/types/gitlab';
+﻿import { GitLabUser, GitLabEvent, GitLabCommit, GitLabCompareResponse } from '@/types/gitlab';
 import { TicketRow } from '@/types/ticket';
+import { generateTicketsFromCommitsAI } from './gitlab-ai';
 
 const GITLAB_BASE_URL = process.env.GITLAB_BASE_URL || 'http://10.5.255.167:9000';
 const GITLAB_API_URL = `${GITLAB_BASE_URL}/api/v4`;
@@ -180,6 +181,16 @@ export async function generateTicketsFromCommits(
   }
 
   return tickets;
+}
+
+export async function generateTicketsFromCommitsWithMode(
+  events: GitLabEvent[],
+  useAI: boolean
+): Promise<TicketRow[]> {
+  if (useAI) {
+    return generateTicketsFromCommitsAI(events);
+  }
+  return generateTicketsFromCommits(events);
 }
 
 export function adjustDate(date: Date, days: number): string {

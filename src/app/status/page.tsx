@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { ArrowLeft, CheckCircle, XCircle, AlertTriangle, Download, FileText, Clock } from 'lucide-react';
@@ -107,6 +107,7 @@ export default function StatusPage() {
   const successRows = result.rows.filter(r => r.status === 'success' || r.status === 'dry_run_success');
   const failedRows = result.rows.filter(r => r.status === 'failed');
   const durationSeconds = (result.duration / 1000).toFixed(1);
+  const hasSolveData = result.solveSuccessCount !== undefined;
 
   return (
     <div className="min-h-screen bg-[var(--color-paper)]">
@@ -151,6 +152,29 @@ export default function StatusPage() {
             <p className="text-lg font-display mt-1">{durationSeconds}s</p>
           </div>
         </div>
+
+        {/* Solve Stats */}
+        {hasSolveData && (
+          <div className="panel mb-6 border-blue-800">
+            <div className="tech-header">
+              <span className="text-xs font-display">SOLVE RESULTS</span>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div className="text-center">
+                <p className="text-[10px] text-green-700 uppercase">Solved</p>
+                <p className="text-2xl font-display mt-1 text-green-800">{result.solveSuccessCount || 0}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-[var(--color-error)] uppercase">Failed</p>
+                <p className="text-2xl font-display mt-1 text-[var(--color-error)]">{result.solveFailedCount || 0}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-[var(--color-text-muted)] uppercase">Not Found</p>
+                <p className="text-2xl font-display mt-1">{result.solveNotFoundCount || 0}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Run Info */}
         <div className="panel mb-6">
@@ -253,6 +277,7 @@ export default function StatusPage() {
               <p className="text-[var(--color-text-muted)]">AUTOMATION COMPLETE</p>
               <p className="font-display">
                 {result.successCount} OF {result.totalRows} ROWS PROCESSED SUCCESSFULLY
+                {hasSolveData && ` // ${result.solveSuccessCount || 0} SOLVED`}
               </p>
             </div>
             <div className="flex gap-3">

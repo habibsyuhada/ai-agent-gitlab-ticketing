@@ -1,4 +1,4 @@
-export interface GitLabUser {
+﻿export interface GitLabUser {
   id: number;
   username: string;
   name: string;
@@ -78,4 +78,5 @@ export interface GitLabParseRequest {
   fromDate: string;
   toDate: string;
   userIds: number[];
+  useAI?: boolean;
 }

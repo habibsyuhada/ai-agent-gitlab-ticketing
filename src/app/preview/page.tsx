@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Play, CheckCircle, XCircle, AlertTriangle, Database } from 'lucide-react';
@@ -11,6 +11,8 @@ export default function PreviewPage() {
     dryRun: true,
     headless: false,
     delayMs: 3000,
+    useAI: false,
+    solveAfterInsert: false,
     startRow: undefined,
     endRow: undefined,
   });
@@ -26,6 +28,14 @@ export default function PreviewPage() {
       try {
         const data = JSON.parse(parsedData);
         setRows(data.rows || []);
+        const storedFailedUsers = sessionStorage.getItem('failedUsers');
+        if (storedFailedUsers) {
+          const fu = JSON.parse(storedFailedUsers);
+          if (fu.length > 0) {
+            const failedMsg = fu.map((u: any) => 'User ID ' + u.userId + ': ' + u.error).join(' | ');
+            setError('WARNING: Failed to fetch events for ' + fu.length + ' user(s): ' + failedMsg);
+          }
+        }
       } catch (err) {
         setError('FAILED TO LOAD PARSED DATA');
       }
@@ -133,6 +143,8 @@ export default function PreviewPage() {
             <p className="text-[10px] text-[var(--color-amber)] uppercase">Mode</p>
             <p className="text-lg font-display mt-1">
               {options.dryRun ? 'DRY RUN' : 'LIVE'}
+              {options.useAI ? ' + AI' : ''}
+              {options.solveAfterInsert ? ' + SOLVE' : ''}
             </p>
           </div>
         </div>
@@ -142,7 +154,7 @@ export default function PreviewPage() {
           <div className="tech-header">
             <span className="text-xs font-display">CONFIGURATION</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
             <div>
               <span className="text-[var(--color-text-muted)]">DRY_RUN:</span>
               <span className="ml-2 font-mono">{options.dryRun ? 'TRUE' : 'FALSE'}</span>
@@ -158,6 +170,14 @@ export default function PreviewPage() {
             <div>
               <span className="text-[var(--color-text-muted)]">RANGE:</span>
               <span className="ml-2 font-mono">{options.startRow || 'ALL'}-{options.endRow || 'ALL'}</span>
+            </div>
+            <div>
+              <span className="text-[var(--color-text-muted)]">USE_AI:</span>
+              <span className="ml-2 font-mono">{options.useAI ? 'TRUE' : 'FALSE'}</span>
+            </div>
+            <div>
+              <span className="text-[var(--color-text-muted)]">AUTO_SOLVE:</span>
+              <span className="ml-2 font-mono">{options.solveAfterInsert ? 'TRUE' : 'FALSE'}</span>
             </div>
           </div>
         </div>
@@ -328,3 +348,6 @@ export default function PreviewPage() {
     </div>
   );
 }
+
+
+
