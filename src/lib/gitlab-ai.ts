@@ -98,7 +98,7 @@ export async function transformCommitMessage(
   commitTitle: string,
   bulletLine: string
 ): Promise<string> {
-  const prompt = `You are a helpdesk ticket assistant. Rewrite the following GitLab commit message bullet to be more natural and descriptive for a helpdesk ticket description.
+  const prompt = `You are a helpdesk ticket assistant. Rewrite only the work detail from the following GitLab commit message bullet to be more natural and descriptive for a helpdesk ticket description.
 
 Commit title: ${commitTitle}
 Commit message bullet: ${bulletLine}
@@ -107,6 +107,9 @@ Rules:
 - Keep it concise (max 150 characters)
 - Make it sound like a proper work report / ticket description
 - Keep the technical meaning intact
+- Do NOT include or repeat the commit title
+- Do NOT include or repeat ticket/project codes from the commit title
+- The final app will add the commit title as a prefix, so return only the detail after the title
 - Return ONLY the rewritten text, no explanation, no prefix`;
 
   try {
@@ -114,11 +117,34 @@ Rules:
     if (!result) {
       return bulletLine;
     }
-    return result;
+    return removeCommitTitleFromAIMessage(result, commitTitle);
   } catch (error) {
     console.error('AI transform failed, using original bullet line:', error);
     return bulletLine;
   }
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function removeCommitTitleFromAIMessage(message: string, commitTitle: string): string {
+  let cleanedMessage = message.trim();
+  const normalizedTitle = commitTitle.trim();
+  const titleCode = normalizedTitle.split(' - ')[0]?.trim();
+
+  if (normalizedTitle) {
+    cleanedMessage = cleanedMessage.replace(new RegExp(escapeRegExp(normalizedTitle), 'gi'), '').trim();
+  }
+
+  if (titleCode) {
+    cleanedMessage = cleanedMessage.replace(new RegExp(`\\b${escapeRegExp(titleCode)}\\b`, 'gi'), '').trim();
+  }
+
+  return cleanedMessage
+    .replace(/^[\s:;,\-.]+/, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim() || message.trim();
 }
 
 export async function generateTicketsFromCommitsAI(

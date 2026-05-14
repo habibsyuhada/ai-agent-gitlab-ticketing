@@ -12,6 +12,11 @@ interface CandidateRow {
   checkboxLocator: Locator;
 }
 
+interface TicketMatch {
+  ticket: ParsedTicket;
+  candidate: CandidateRow;
+}
+
 async function filterByStatus(page: Page, statusCode: string): Promise<void> {
   await page.selectOption('select[name="stat_req"]', statusCode);
   await page.click('button[type="submit"]:has-text("Search")');
@@ -156,36 +161,6 @@ async function goToNextPage(page: Page): Promise<void> {
   await page.waitForTimeout(1000);
 }
 
-async function findTicketForAssign(
-  page: Page,
-  ticket: ParsedTicket,
-  diagnostics: CandidateRow[]
-): Promise<CandidateRow | null> {
-  const descriptionKey = getDescriptionKey(ticket.Description);
-
-  while (true) {
-    const candidates = await getVisibleCandidateRows(page);
-    diagnostics.push(...candidates);
-
-    const matchedCandidate = candidates.find((candidate) =>
-      assignMatches(candidate.assign, ticket.Assign) &&
-      statusMatches(candidate.status) &&
-      descriptionMatches(candidate.description, ticket.Description)
-    );
-
-    if (matchedCandidate) {
-      console.log(`Found ticket ${matchedCandidate.ticketId} for key "${descriptionKey}"`);
-      return matchedCandidate;
-    }
-
-    if (!(await hasNextPage(page))) {
-      return null;
-    }
-
-    await goToNextPage(page);
-  }
-}
-
 function groupTicketsByAssign(tickets: ParsedTicket[]): Map<string, ParsedTicket[]> {
   const groupedTickets = new Map<string, ParsedTicket[]>();
 
@@ -197,6 +172,27 @@ function groupTicketsByAssign(tickets: ParsedTicket[]): Map<string, ParsedTicket
   }
 
   return groupedTickets;
+}
+
+function findMatchesOnCurrentPage(tickets: ParsedTicket[], candidates: CandidateRow[]): TicketMatch[] {
+  const matches: TicketMatch[] = [];
+  const usedTicketIds = new Set<string>();
+
+  for (const ticket of tickets) {
+    const matchedCandidate = candidates.find((candidate) =>
+      !usedTicketIds.has(candidate.ticketId) &&
+      assignMatches(candidate.assign, ticket.Assign) &&
+      statusMatches(candidate.status) &&
+      descriptionMatches(candidate.description, ticket.Description)
+    );
+
+    if (matchedCandidate) {
+      usedTicketIds.add(matchedCandidate.ticketId);
+      matches.push({ ticket, candidate: matchedCandidate });
+    }
+  }
+
+  return matches;
 }
 
 function logNotFoundDiagnostics(ticket: ParsedTicket, candidates: CandidateRow[]): void {
@@ -220,12 +216,16 @@ function logNotFoundDiagnostics(ticket: ParsedTicket, candidates: CandidateRow[]
   }
 }
 
-async function solveTicket(
+async function solveMatchedTickets(
   page: Page,
-  checkboxLocator: Locator
+  matches: TicketMatch[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await checkboxLocator.check();
+    for (const match of matches) {
+      await match.candidate.checkboxLocator.check();
+      console.log(`Checked ticket ${match.candidate.ticketId} for key "${getDescriptionKey(match.ticket.Description)}"`);
+    }
+
     await page.waitForTimeout(500);
 
     await page.selectOption('#stat_req', '2');
@@ -244,7 +244,7 @@ async function solveTicket(
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('Failed to solve ticket:', errorMessage);
+    console.error('Failed to solve ticket batch:', errorMessage);
     return { success: false, error: errorMessage };
   }
 }
@@ -266,46 +266,83 @@ export async function solveAllTickets(
   const ticketsByAssign = groupTicketsByAssign(tickets);
 
   for (const [assign, assignedTickets] of ticketsByAssign) {
+    const remainingTickets = new Set(assignedTickets);
+    const diagnosticsByTicket = new Map<ParsedTicket, CandidateRow[]>();
+
     console.log(
       `Processing assign "${assign}" with ${assignedTickets.length} ticket(s). ` +
       `Entries per page: ${selectedPageLength}`
     );
 
-    for (const ticket of assignedTickets) {
-      const descriptionKey = getDescriptionKey(ticket.Description);
-      const diagnostics: CandidateRow[] = [];
+    while (remainingTickets.size > 0) {
+      let processedInPass = 0;
 
       await filterByStatus(page, '1');
       await setMaxPageLength(page);
       await searchDataTable(page, assign);
 
-      const initialCandidateCount = await page.locator('#dataTable tbody tr').count();
-      console.log(
-        `Searching assign "${assign}" for key "${descriptionKey}". ` +
-        `Rows shown: ${initialCandidateCount}`
-      );
+      while (true) {
+        const currentTickets = Array.from(remainingTickets);
+        const candidates = await getVisibleCandidateRows(page);
 
-      const matchedCandidate = await findTicketForAssign(page, ticket, diagnostics);
+        for (const ticket of currentTickets) {
+          const diagnostics = diagnosticsByTicket.get(ticket) || [];
+          diagnostics.push(...candidates);
+          diagnosticsByTicket.set(ticket, diagnostics);
+        }
 
-      if (!matchedCandidate) {
-        notFoundCount++;
-        logNotFoundDiagnostics(ticket, diagnostics);
-        continue;
+        console.log(
+          `Searching assign "${assign}". ` +
+          `Rows shown: ${candidates.length}, remaining tickets: ${remainingTickets.size}`
+        );
+
+        const matches = findMatchesOnCurrentPage(currentTickets, candidates);
+
+        if (matches.length > 0) {
+          console.log(
+            `Solving ${matches.length} ticket(s) for assign "${assign}": ` +
+            matches.map((match) => match.candidate.ticketId).join(', ')
+          );
+
+          const result = await solveMatchedTickets(page, matches);
+
+          if (result.success) {
+            successCount += matches.length;
+            processedInPass += matches.length;
+
+            for (const match of matches) {
+              remainingTickets.delete(match.ticket);
+            }
+
+            console.log(`Solved ${matches.length} ticket(s) for assign "${assign}"`);
+          } else {
+            failedCount += matches.length;
+            processedInPass += matches.length;
+
+            for (const match of matches) {
+              remainingTickets.delete(match.ticket);
+            }
+
+            console.error(`Failed to solve ${matches.length} ticket(s) for assign "${assign}": ${result.error}`);
+          }
+
+          break;
+        }
+
+        if (!(await hasNextPage(page))) {
+          break;
+        }
+
+        await goToNextPage(page);
       }
 
-      console.log(
-        `Solving ticket ${matchedCandidate.ticketId}: ` +
-        `${ticket.Description.substring(0, 50)}...`
-      );
+      if (processedInPass === 0) {
+        for (const ticket of remainingTickets) {
+          notFoundCount++;
+          logNotFoundDiagnostics(ticket, diagnosticsByTicket.get(ticket) || []);
+        }
 
-      const result = await solveTicket(page, matchedCandidate.checkboxLocator);
-
-      if (result.success) {
-        successCount++;
-        console.log(`Ticket ${matchedCandidate.ticketId} solved successfully`);
-      } else {
-        failedCount++;
-        console.error(`Failed to solve ticket ${matchedCandidate.ticketId}: ${result.error}`);
+        break;
       }
     }
   }
