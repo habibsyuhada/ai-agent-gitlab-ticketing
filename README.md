@@ -1,265 +1,223 @@
-# Helpdesk RPA Automation
+# AI Agent GitLab Ticketing
 
-A Next.js application for automating helpdesk ticket creation from Excel files using Playwright. This internal RPA tool helps streamline bulk ticket creation for the configured helpdesk system.
+A Next.js application that turns GitLab activity or Excel rows into helpdesk tickets, then automates ticket creation and optional ticket solving through Playwright. The helpdesk portal URL is configured through environment variables, so no portal host is hardcoded in the application.
 
 ## Features
 
-- 📊 **Excel Upload**: Upload `.xlsx` or `.xls` files containing ticket information
-- ✅ **Validation**: Automatic validation of required fields before processing
-- 🔄 **Dry Run Mode**: Test your data without actually submitting tickets
-- 🤖 **Browser Automation**: Uses Playwright to fill and submit helpdesk forms
-- 📝 **Logging**: Detailed logs and screenshots for troubleshooting
-- 🎯 **Select2 Support**: Handles both native selects and Select2 dropdowns
-- 📈 **Progress Tracking**: Real-time status updates during automation
+- Import tickets from Excel files.
+- Import GitLab commit activity and convert it into ticket rows.
+- Use an AI agent to rewrite GitLab commit bullets into concise helpdesk-ready descriptions.
+- Create helpdesk tickets through browser automation.
+- Optionally solve inserted tickets after creation.
+- Batch solve tickets by assignee to reduce repeated status updates.
+- Persist browser cookies between runs for manual-login sessions.
+- Save run results and screenshots for troubleshooting.
+
+## AI Agent Workflow
+
+The application has two automation-assisted flows:
+
+### GitLab Ticket Agent
+
+When AI mode is enabled on the GitLab import page:
+
+1. The app fetches GitLab push events and commit details.
+2. Each commit message is parsed into work-report bullet lines.
+3. The AI agent rewrites each bullet into a concise helpdesk ticket detail.
+4. The final ticket description keeps the commit title as the prefix and appends only the rewritten detail.
+
+Example output:
+
+```text
+UP-PORTAL-BE000001 - Initial NestJS backend setup
+```
+
+The AI prompt explicitly prevents repeating the commit title or project/ticket code inside the rewritten detail.
+
+### Helpdesk Solve Agent
+
+When `solveAfterInsert` is enabled:
+
+1. The app creates all valid helpdesk tickets first.
+2. It opens the helpdesk list page and filters tickets to `On Progress`.
+3. It sets the DataTables page length to the maximum available value.
+4. It groups inserted tickets by `Assign`.
+5. For each assignee, it searches the DataTable by assignee name.
+6. It matches visible rows by normalized description and ticket key.
+7. It checks all matching tickets on the current page and changes their status to `Solved` in one batch.
+8. If the assignee search spans multiple pages, it repeats per page because server-side DataTables only submits checkboxes currently rendered in the DOM.
 
 ## Tech Stack
 
-- **Next.js 14** with App Router
-- **TypeScript**
-- **Tailwind CSS**
-- **Playwright** for browser automation
-- **XLSX** for Excel parsing
-- **Zod** for validation
+- Next.js 14 with App Router
+- TypeScript
+- Tailwind CSS
+- Playwright
+- XLSX
+- Zod
+- OpenAI-compatible chat completion API
 
 ## Prerequisites
 
-- Node.js 18+ and npm
-- Chromium browser (installed via Playwright)
+- Node.js 18 or newer
+- npm
+- Chromium browser installed through Playwright
+- Access to the target helpdesk portal
+- Optional: GitLab access token for GitLab import
+- Optional: OpenAI-compatible API key for AI commit rewriting
 
 ## Installation
 
-1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd bot-ticketing
-```
-
-2. Install dependencies:
-```bash
 npm install
-```
-
-3. Install Playwright browsers:
-```bash
 npm run playwright:install
 ```
 
-4. Run the development server:
+Create `.env.local` from `.env.example`, then start the app:
+
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+Open [http://localhost:3000](http://localhost:3000).
+
+## Environment Variables
+
+```env
+# Debug logging
+DEBUG=false
+
+# GitLab import
+GITLAB_BASE_URL=http://your-gitlab-host
+GITLAB_TOKEN=your-gitlab-token
+
+# Helpdesk portal
+HELPDESK_URL=https://your-helpdesk-host/helpdesk/it/new_helpdesk
+NEXT_PUBLIC_HELPDESK_URL=https://your-helpdesk-host/helpdesk/it/new_helpdesk
+
+# Optional browser override
+PLAYWRIGHT_BROWSER_PATH=
+
+# AI commit-message rewriting
+OPENAI_BASE_URL=https://your-openai-compatible-host/v1
+OPENAI_API_KEY=your-api-key-here
+OPENAI_MODEL=gpt-4o
+```
+
+`HELPDESK_URL` should point to the new-ticket page. The app derives the list and process URLs from the same base path.
+
+`NEXT_PUBLIC_HELPDESK_URL` is used only for the client-side login link shown in the UI.
 
 ## Excel File Format
 
-Your Excel file must contain the following columns (headers are case-insensitive):
+Your Excel file must contain these columns. Headers are case-insensitive.
 
 | Column | Required | Description | Example |
-|--------|----------|-------------|---------|
-| type | Yes | Ticket type | Hardware, Software |
-| Category | Yes | Ticket category | Laptop, Monitor, Software |
-| Requestor | Yes | Name of the person requesting | John Doe |
-| Computer Name | Yes | Computer name/ID | LT-JDOE-001 |
-| Department | Yes | Department name | IT, HR, Finance |
-| Location | Yes | Office location | Head Office, Branch A |
-| Project | Yes | Project name | General, Project X |
-| Description | Yes | Detailed description | Need new laptop for dev work |
-| Priority | No | Priority level | Low, Medium, High |
-| Assign | Yes | Assigned to | IT Support, John Smith |
-
-### Sample Excel Template
-
-You can download a sample template from the upload page, or create your own with these columns:
-
-```
-type | Category | Requestor | Computer Name | Department | Location | Project | Description | Priority | Assign
-Hardware | Laptop | John Doe | LT-JDOE-001 | IT | Head Office | General | Need new laptop | Medium | IT Support
-```
+| --- | --- | --- | --- |
+| type | Yes | Ticket type | Task |
+| Category | Yes | Ticket category | Software |
+| Requestor | Yes | Requestor name or ID | 10031059 |
+| Computer Name | Yes | Computer name or placeholder | - |
+| Department | Yes | Department name | IT |
+| Location | Yes | Office location | IT OFFICE |
+| Project | Yes | Project name | Overhead |
+| Description | Yes | Ticket description | UP-PORTAL-BE000001 - Initial setup |
+| Priority | No | Priority level | Medium |
+| Assign | Yes | Assigned technician | Jane Smith |
 
 ## Usage
 
-### 1. Prepare Your Excel File
+1. Configure `.env.local`.
+2. Start the app with `npm run dev`.
+3. Log in manually to the configured helpdesk portal if needed.
+4. Import tickets from Excel or from GitLab.
+5. Review parsed rows on the preview page.
+6. Choose dry run or real submission.
+7. Enable solve-after-insert if tickets should be moved to `Solved` after creation.
+8. Monitor the run on the status page.
 
-Create an Excel file with the required columns listed above. Make sure all required fields are filled.
+## GitLab Import
 
-### 2. Login to Helpdesk
+The GitLab page can fetch commits for selected users and date ranges. In non-AI mode, ticket descriptions are built directly from commit titles and parsed bullet lines. In AI mode, each bullet line is rewritten through the configured OpenAI-compatible API before becoming a helpdesk ticket description.
 
-Before starting automation, make sure you're logged in to the helpdesk portal configured in `HELPDESK_URL`. The automation will wait for manual login if needed.
+## Helpdesk Automation
 
-### 3. Upload and Configure
+The Playwright automation:
 
-1. Go to the upload page
-2. Drag & drop your Excel file or click to select
-3. Configure automation options:
-   - **Dry Run**: Enable to test without submitting (recommended first)
-   - **Headless**: Run browser in background (not recommended for first use)
-   - **Delay**: Time between tickets (default 3000ms)
-   - **Start/End Row**: Process a subset of rows
-4. Click "Upload and Preview"
+- Loads saved cookies from `automation-logs/session/auth-state.json`.
+- Waits for manual login when the session is missing or expired.
+- Fills the helpdesk form using the parsed ticket rows.
+- Supports native select fields and Select2-style dropdowns.
+- Saves screenshots before submit and on failures.
+- Stores run results in `automation-logs/runs/`.
 
-### 4. Preview and Validate
+## Scripts
 
-The preview page shows:
-- Total rows, valid rows, and invalid rows
-- All parsed data with validation errors highlighted
-- Automation options summary
-
-Options:
-- **Process Valid Rows Only**: Skip rows with validation errors
-- **Process All Rows**: Process all rows (may fail for invalid rows)
-
-### 5. Monitor Progress
-
-The status page shows:
-- Real-time progress
-- Success/failure counts
-- Detailed error messages
-- Screenshot links for failed rows
-- Download results as JSON
-
-## Configuration
-
-### Automation Options
-
-- **dryRun** (default: `true`): When enabled, fills the form but doesn't submit
-- **headless** (default: `false`): Run browser without visible window
-- **delayMs** (default: `3000`): Delay between tickets in milliseconds
-- **startRow**: Optional start row index (0-based)
-- **endRow**: Optional end row index (0-based)
-
-### Environment Variables
-
-Create a `.env.local` file:
-
-```env
-# Enable debug logging
-DEBUG=true
-
-# Helpdesk portal URL
-HELPDESK_URL=https://your-helpdesk-host/helpdesk/it/new_helpdesk
-
-# Client-visible helpdesk URL for the login link shown in the UI
-NEXT_PUBLIC_HELPDESK_URL=https://your-helpdesk-host/helpdesk/it/new_helpdesk
+```bash
+npm run dev
+npm run build
+npm start
+npm run playwright:install
+npm run cookies:check
+npm run cookies:clear
 ```
 
 ## Troubleshooting
 
-### Select Dropdowns Not Working
+### Dropdowns Are Not Selected
 
-If dropdowns aren't being selected:
+Check that the Excel value matches the visible option label or the option value. The automation tries exact text, normalized text, value matching, and Select2 search fallback.
 
-1. Check that the value in Excel matches the option label or value in the form
-2. The system tries multiple matching strategies:
-   - Exact label match
-   - Trimmed label match
-   - Value match
-   - Select2 search fallback
+### Login Is Requested Again
 
-### Login Issues
+The saved cookie session may be expired or invalidated by the server. Clear saved cookies and log in again:
 
-The automation waits for manual login if:
-- You're not logged in when the browser opens
-- The URL doesn't contain `/helpdesk/it/new_helpdesk`
-
-**Session Persistence**: After your first login, the browser will save your session cookies to `automation-logs/session/auth-state.json`. Subsequent runs will use this saved session, so you won't need to login again unless your session expires.
-
-### Cookie Management
-
-Check saved cookies:
-```bash
-npm run cookies:check
-```
-
-Clear saved cookies (force new login):
 ```bash
 npm run cookies:clear
-# Or manually:
-rm automation-logs/session/auth-state.json
-# Windows:
-del automation-logs\session\auth-state.json
 ```
 
-For more details about how cookie authentication works, see [COOKIES_EXPLANATION.md](COOKIES_EXPLANATION.md).
-```
+### Solve Phase Reports Not Found
 
-### Timeout Errors
+Check the automation logs. The solve agent logs the assignee search, visible candidates, ticket IDs, descriptions, requestors, assignees, and statuses. A common cause is a description mismatch between the inserted ticket and the row shown by the helpdesk table.
 
-If you get timeout errors:
+### Build Warning About Server Actions
 
-1. Increase the delay between tickets
-2. Check your internet connection
-3. Make sure the helpdesk site is accessible
-4. Try with headless mode disabled to see what's happening
+Next.js may warn that `experimental.serverActions` is no longer needed. This warning comes from `next.config.mjs` and does not block the build.
 
-### Screenshots
+## Project Structure
 
-Failed rows are saved with screenshots to:
-```
-automation-logs/screenshots/{runId}/
-```
-
-JSON logs are saved to:
-```
-automation-logs/runs/{runId}.json
-```
-
-## Development
-
-### Build for Production
-
-```bash
-npm run build
-npm start
-```
-
-### Project Structure
-
-```
+```text
 src/
-├── app/
-│   ├── api/
-│   │   ├── automation/run/route.ts    # Automation API endpoint
-│   │   └── excel/parse/route.ts       # Excel parsing API
-│   ├── globals.css
-│   ├── layout.tsx
-│   ├── page.tsx                       # Upload page
-│   ├── preview/page.tsx               # Preview page
-│   └── status/page.tsx                # Status page
-├── lib/
-│   ├── excel.ts                       # Excel parsing utilities
-│   ├── helpdesk-rpa.ts                # Playwright automation
-│   ├── logger.ts                      # Logging utilities
-│   ├── utils.ts                       # General utilities
-│   └── validation.ts                  # Validation schemas
-└── types/
-    └── ticket.ts                      # TypeScript types
+  app/
+    api/
+      automation/run/route.ts
+      excel/parse/route.ts
+      gitlab/parse/route.ts
+      gitlab/users/route.ts
+    gitlab/page.tsx
+    preview/page.tsx
+    status/page.tsx
+    page.tsx
+  lib/
+    excel.ts
+    gitlab.ts
+    gitlab-ai.ts
+    helpdesk-ai-solve.ts
+    helpdesk-config.ts
+    helpdesk-rpa.ts
+    logger.ts
+    validation.ts
+  types/
+    gitlab.ts
+    ticket.ts
 ```
 
-## Security Considerations
+## Security Notes
 
-- **No credentials in code**: The app doesn't hardcode login credentials
-- **Manual login required**: You must be logged in to use the automation
-- **Visible by default**: Automation runs in visible browser mode (unless headless is enabled)
-- **Dry run mode**: Test your data before actual submission
-- **Local file storage**: Temporary files are stored locally only
-
-## Important Notes
-
-1. **Always run dry run first**: Test your data with dry run mode before actual submission
-2. **Use appropriate delays**: Don't set delay too low to avoid overwhelming the server
-3. **Validate your data**: Check the preview page for validation errors
-4. **Monitor the process**: Watch the browser automation to ensure it's working correctly
-5. **Check logs**: Review logs and screenshots if errors occur
-
-## License
-
-This is an internal tool for valid work reporting purposes only.
-
-## Support
-
-For issues or questions:
-1. Check the troubleshooting section above
-2. Review logs in `automation-logs/runs/`
-3. Check screenshots in `automation-logs/screenshots/`
-4. Verify your Excel file format matches the required columns
+- Do not commit `.env.local`.
+- Do not commit `automation-logs/`.
+- Saved Playwright auth state contains active session cookies.
+- Use dry run before real submissions when validating new input data.
+- Keep API tokens out of source code.
