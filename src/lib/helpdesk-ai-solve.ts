@@ -1,7 +1,6 @@
 import { Locator, Page } from 'playwright';
 import { ParsedTicket } from '@/types/ticket';
-
-const HELPDESK_LIST_URL = 'https://iss.smoebatam.com/helpdesk/it/it_helpdesk';
+import { getHelpdeskListUrl } from './helpdesk-config';
 
 interface CandidateRow {
   ticketId: string;
@@ -257,7 +256,7 @@ export async function solveAllTickets(
   let failedCount = 0;
   let notFoundCount = 0;
 
-  await page.goto(HELPDESK_LIST_URL, { waitUntil: 'networkidle' });
+  await page.goto(getHelpdeskListUrl(), { waitUntil: 'networkidle' });
   await page.waitForTimeout(1000);
 
   await filterByStatus(page, '1');

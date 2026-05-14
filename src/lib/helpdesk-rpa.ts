@@ -5,10 +5,7 @@ import { randomUUID } from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
 import { solveAllTickets } from './helpdesk-ai-solve';
-
-const TARGET_URL = 'https://iss.smoebatam.com/helpdesk/it/new_helpdesk';
-const FORM_ACTION_URL = 'https://iss.smoebatam.com/helpdesk/it/process_add_helpdesk';
-const HELPDESK_LIST_URL = 'https://iss.smoebatam.com/helpdesk/it/it_helpdesk';
+import { getHelpdeskHostname, getHelpdeskNewTicketUrl } from './helpdesk-config';
 
 export async function createBrowser(options: AutomationOptions): Promise<{ browser: Browser; context: BrowserContext; page: Page }> {
   const browser = await chromium.launch({
@@ -34,7 +31,7 @@ export async function createBrowser(options: AutomationOptions): Promise<{ brows
       const authState = JSON.parse(await fs.readFile(authStatePath, 'utf-8'));
 
       if (authState.cookies && authState.cookies.length > 0) {
-        const normalizedCookies = normalizeCookiesForTarget(authState.cookies, TARGET_URL);
+        const normalizedCookies = normalizeCookiesForTarget(authState.cookies, getHelpdeskNewTicketUrl());
 
         await context.addCookies(normalizedCookies);
 
@@ -84,8 +81,10 @@ function normalizeCookiesForTarget(cookies: any[], targetUrl: string): any[] {
     const normalizedCookie: any = { ...cookie };
 
     if (cookie.domain) {
-      if (targetDomain.includes('smoebatam.com')) {
-        normalizedCookie.domain = '.smoebatam.com';
+      const cookieDomain = cookie.domain.replace(/^\./, '');
+
+      if (!targetDomain.endsWith(cookieDomain)) {
+        normalizedCookie.domain = getHelpdeskHostname();
       }
     }
 
@@ -105,7 +104,7 @@ async function fileExists(filePath: string): Promise<boolean> {
 }
 
 export async function waitForManualLoginIfNeeded(page: Page): Promise<void> {
-  await page.goto(TARGET_URL, { waitUntil: 'networkidle' });
+  await page.goto(getHelpdeskNewTicketUrl(), { waitUntil: 'networkidle' });
 
   const currentUrl = page.url();
 
@@ -207,7 +206,7 @@ export async function createHelpdeskTicket(
   try {
     console.log(`Processing row ${rowIndex}: ${ticket.Requestor}`);
 
-    await page.goto(TARGET_URL, { waitUntil: 'networkidle' });
+    await page.goto(getHelpdeskNewTicketUrl(), { waitUntil: 'networkidle' });
 
     await page.waitForSelector('form', { timeout: 10000 });
 

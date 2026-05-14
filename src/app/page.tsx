@@ -5,6 +5,20 @@ import Link from 'next/link';
 import { Upload, FileSpreadsheet, Settings, Info, Play, Download, Cpu, AlertTriangle, GitBranch } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const helpdeskUrl = process.env.NEXT_PUBLIC_HELPDESK_URL || '';
+
+function getHelpdeskLabel(url: string): string {
+  if (!url) {
+    return 'HELPDESK PORTAL';
+  }
+
+  try {
+    return new URL(url).hostname.toUpperCase();
+  } catch {
+    return 'HELPDESK PORTAL';
+  }
+}
+
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -149,12 +163,12 @@ export default function HomePage() {
               <p className="text-[var(--color-text-muted)]">
                 ENSURE YOU ARE LOGGED INTO{' '}
                 <a
-                  href="https://iss.smoebatam.com/helpdesk/it/new_helpdesk"
+                  href={helpdeskUrl || undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[var(--color-amber)] underline underline-offset-2"
                 >
-                  ISS.SMOEBATAM.COM
+                  {getHelpdeskLabel(helpdeskUrl)}
                 </a>
                 {' '}BEFORE INITIATING AUTOMATION.
               </p>

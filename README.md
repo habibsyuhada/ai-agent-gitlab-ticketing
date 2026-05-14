@@ -1,6 +1,6 @@
 # Helpdesk RPA Automation
 
-A Next.js application for automating helpdesk ticket creation from Excel files using Playwright. This internal RPA tool helps streamline bulk ticket creation for the iss.smoebatam.com helpdesk system.
+A Next.js application for automating helpdesk ticket creation from Excel files using Playwright. This internal RPA tool helps streamline bulk ticket creation for the configured helpdesk system.
 
 ## Features
 
@@ -85,7 +85,7 @@ Create an Excel file with the required columns listed above. Make sure all requi
 
 ### 2. Login to Helpdesk
 
-Before starting automation, make sure you're logged in to [iss.smoebatam.com](https://iss.smoebatam.com/helpdesk/it/new_helpdesk) in your browser. The automation will wait for manual login if needed.
+Before starting automation, make sure you're logged in to the helpdesk portal configured in `HELPDESK_URL`. The automation will wait for manual login if needed.
 
 ### 3. Upload and Configure
 
@@ -136,8 +136,11 @@ Create a `.env.local` file:
 # Enable debug logging
 DEBUG=true
 
-# Custom helpdesk URL (optional)
-HELPDESK_URL=https://iss.smoebatam.com/helpdesk/it/new_helpdesk
+# Helpdesk portal URL
+HELPDESK_URL=https://your-helpdesk-host/helpdesk/it/new_helpdesk
+
+# Client-visible helpdesk URL for the login link shown in the UI
+NEXT_PUBLIC_HELPDESK_URL=https://your-helpdesk-host/helpdesk/it/new_helpdesk
 ```
 
 ## Troubleshooting

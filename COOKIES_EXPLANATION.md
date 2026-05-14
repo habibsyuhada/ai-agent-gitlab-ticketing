@@ -2,7 +2,7 @@
 
 ## Apa yang Sebenarnya Disimpan?
 
-Ketika Anda login ke iss.smoebatam.com, server mengirim **cookies** yang berisi:
+Ketika Anda login ke helpdesk host yang dikonfigurasi di `HELPDESK_URL`, server mengirim **cookies** yang berisi:
 
 1. **Session ID** - Identifier unik untuk sesi login Anda
 2. **Authentication Token** - Bisa berupa JWT atau token lainnya
@@ -35,7 +35,7 @@ Set-Cookie: user_token=jwt_token_here; Path=/; Secure; HttpOnly
 ```
 
 Cookie ini kemudian:
-- Disimpan oleh browser (untuk domain iss.smoebatam.com)
+- Disimpan oleh browser (untuk domain helpdesk yang dikonfigurasi)
 - Dikirim otomatis ke server di setiap request berikutnya
 - Server cek cookie ini untuk verifikasi "Oh ini user X yang sudah login"
 
@@ -49,7 +49,7 @@ Dengan `storageStatePath`, Playwright menyimpan:
     {
       "name": "PHPSESSID",
       "value": "abc123def456",
-      "domain": "iss.smoebatam.com",
+      "domain": "your-helpdesk-host",
       "path": "/",
       "expires": 1234567890,
       "httpOnly": true,
@@ -59,7 +59,7 @@ Dengan `storageStatePath`, Playwright menyimpan:
   ],
   "origins": [
     {
-      "origin": "https://iss.smoebatam.com",
+      "origin": "https://your-helpdesk-host",
       "localStorage": [...]
     }
   ]
@@ -93,7 +93,7 @@ Lalu jalankan automation, akan muncul log:
 
 ### 3. Cek di Browser
 
-Buka DevTools → Application → Cookies → iss.smoebatam.com
+Buka DevTools → Application → Cookies → domain helpdesk yang dikonfigurasi
 
 Bandigkan dengan isi file `auth-state.json`
 
@@ -138,7 +138,7 @@ Bisa jadi masalah **cookie attributes**:
 ✅ **Aman**:
 - Cookies disimpan di file system lokal
 - Tidak dikirim ke server lain
-- Hanya untuk domain iss.smoebatam.com
+- Hanya untuk domain helpdesk yang dikonfigurasi
 
 ⚠️ **Perhatikan**:
 - File `auth-state.json` berisi session ID yang valid
