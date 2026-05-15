@@ -1,6 +1,6 @@
-﻿import { GitLabUser, GitLabEvent, GitLabCommit, GitLabCompareResponse } from '@/types/gitlab';
+import { GitLabUser, GitLabEvent, GitLabCommit, GitLabCompareResponse, GitLabSystemHookCommitPayload } from '@/types/gitlab';
 import { TicketRow } from '@/types/ticket';
-import { generateTicketsFromCommitsAI } from './gitlab-ai';
+import { generateTicketsFromCommitsAI, generateTicketsFromHookCommitsAI } from './gitlab-ai';
 
 const GITLAB_BASE_URL = process.env.GITLAB_BASE_URL || 'http://10.5.255.167:9000';
 const GITLAB_API_URL = `${GITLAB_BASE_URL}/api/v4`;
@@ -203,4 +203,65 @@ export function getYesterdayDate(): string {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   return yesterday.toISOString().split('T')[0];
+}
+
+
+export async function fetchUserById(userId: number): Promise<GitLabUser> {
+  const response = await fetch(`${GITLAB_API_URL}/users/${userId}`, {
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch user ${userId}: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function generateTicketsFromHookCommitsWithMode(
+  commits: GitLabSystemHookCommitPayload[],
+  assignName: string,
+  useAI: boolean
+): Promise<TicketRow[]> {
+  if (useAI) {
+    return generateTicketsFromHookCommitsAI(commits, assignName);
+  }
+
+  const tickets: TicketRow[] = [];
+  const seenCommitIds = new Set<string>();
+
+  for (const commit of commits) {
+    if (!commit?.id || !commit?.message) continue;
+    if (seenCommitIds.has(commit.id)) continue;
+    seenCommitIds.add(commit.id);
+
+    const lines = commit.message.split('\n');
+    const commitTitle = (lines[0] || '').trim();
+
+    if (!commitTitle || commitTitle.startsWith('Merge branch')) {
+      continue;
+    }
+
+    const bulletLines = parseCommitMessage(commit.message);
+    if (bulletLines.length === 0) {
+      continue;
+    }
+
+    for (const bulletLine of bulletLines) {
+      tickets.push({
+        type: 'Task',
+        Category: 'Software',
+        Requestor: '10031059',
+        ComputerName: '-',
+        Department: 'IT',
+        Location: 'IT OFFICE',
+        Project: 'Overhead',
+        Description: `${commitTitle} - ${bulletLine}`,
+        Priority: 'Medium',
+        Assign: assignName,
+      });
+    }
+  }
+
+  return tickets;
 }

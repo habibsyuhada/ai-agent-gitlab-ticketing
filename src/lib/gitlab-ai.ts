@@ -1,4 +1,4 @@
-﻿import { GitLabEvent, GitLabCommit } from '@/types/gitlab';
+import { GitLabEvent, GitLabCommit, GitLabSystemHookCommitPayload } from '@/types/gitlab';
 import { TicketRow } from '@/types/ticket';
 import { fetchCompareCommits, parseCommitMessage } from './gitlab';
 
@@ -200,6 +200,51 @@ export async function generateTicketsFromCommitsAI(
         `Failed to fetch compare for project ${project_id} (${commit_from}...${commit_to}):`,
         error
       );
+    }
+  }
+
+  return tickets;
+}
+
+
+export async function generateTicketsFromHookCommitsAI(
+  commits: GitLabSystemHookCommitPayload[],
+  assignName: string
+): Promise<TicketRow[]> {
+  const tickets: TicketRow[] = [];
+  const seenCommitIds = new Set<string>();
+
+  for (const commit of commits) {
+    if (!commit?.id || !commit?.message) continue;
+    if (seenCommitIds.has(commit.id)) continue;
+    seenCommitIds.add(commit.id);
+
+    const lines = commit.message.split('\n');
+    const commitTitle = (lines[0] || '').trim();
+
+    if (!commitTitle || commitTitle.startsWith('Merge branch')) {
+      continue;
+    }
+
+    const bulletLines = parseCommitMessage(commit.message);
+    if (bulletLines.length === 0) {
+      continue;
+    }
+
+    for (const bulletLine of bulletLines) {
+      const aiMessage = await transformCommitMessage(commitTitle, bulletLine);
+      tickets.push({
+        type: 'Task',
+        Category: 'Software',
+        Requestor: '10031059',
+        ComputerName: '-',
+        Department: 'IT',
+        Location: 'IT OFFICE',
+        Project: 'Overhead',
+        Description: `${commitTitle} - ${aiMessage}`,
+        Priority: 'Medium',
+        Assign: assignName,
+      });
     }
   }
 

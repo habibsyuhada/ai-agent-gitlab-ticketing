@@ -80,3 +80,22 @@ export interface GitLabParseRequest {
   userIds: number[];
   useAI?: boolean;
 }
+
+export interface GitLabSystemHookCommitPayload {
+  id: string;
+  message: string;
+  timestamp: string;
+  url: string;
+  author?: {
+    name?: string;
+    email?: string;
+  };
+}
+
+export interface GitLabSystemHookPushPayload {
+  event_name: string;
+  project_id: number;
+  user_id: number;
+  commits: GitLabSystemHookCommitPayload[];
+  ref?: string;
+}
