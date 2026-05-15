@@ -42,16 +42,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV HOME=/home/nextjs
+ENV XDG_CONFIG_HOME=/home/nextjs/.config
+ENV XDG_CACHE_HOME=/home/nextjs/.cache
 
-RUN groupadd -r nextjs && useradd -r -g nextjs nextjs
+RUN groupadd -r nextjs && useradd -r -m -d /home/nextjs -g nextjs nextjs
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules/playwright ./node_modules/playwright
+COPY --from=builder /app/node_modules/playwright-core ./node_modules/playwright-core
 
-RUN mkdir -p /app/automation-logs && chown -R nextjs:nextjs /app
+RUN mkdir -p /app/automation-logs /ms-playwright /home/nextjs/.config /home/nextjs/.cache \
+  && chown -R nextjs:nextjs /app /ms-playwright /home/nextjs
 
 USER nextjs
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-lc", "if ! find /ms-playwright -type f -name chrome -path '*/chrome-linux*/chrome' | grep -q .; then node node_modules/playwright/cli.js install chromium; fi; node server.js"]

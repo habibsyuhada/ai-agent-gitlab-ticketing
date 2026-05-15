@@ -236,6 +236,17 @@ npm run cookies:clear
 
 Check the automation logs. The solve agent logs the assignee search, visible candidates, ticket IDs, descriptions, requestors, assignees, and statuses. A common cause is a description mismatch between the inserted ticket and the row shown by the helpdesk table.
 
+### Docker Health Stuck at `starting`
+
+If container health stays at `starting` and `/ms-playwright` remains empty, it is usually a volume permission issue.
+
+Run:
+
+```bash
+docker compose exec -u root app sh -lc "chown -R nextjs:nextjs /ms-playwright /app/automation-logs"
+docker compose restart app
+```
+
 ## Project Structure
 
 ```text

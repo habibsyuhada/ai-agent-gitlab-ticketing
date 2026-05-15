@@ -11,6 +11,8 @@ export async function createBrowser(options: AutomationOptions): Promise<{ brows
   const browser = await chromium.launch({
     headless: options.headless,
     slowMo: options.headless ? 0 : 200,
+    chromiumSandbox: false,
+    args: ['--disable-crash-reporter'],
   });
 
   const sessionDir = path.join(process.cwd(), 'automation-logs', 'session');
