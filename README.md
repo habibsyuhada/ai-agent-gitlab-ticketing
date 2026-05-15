@@ -167,6 +167,57 @@ npm run cookies:check
 npm run cookies:clear
 ```
 
+## Docker Compose (Production)
+
+This project includes a single production-oriented Docker Compose setup.
+
+1. Build local image:
+
+```bash
+docker build -t ai-agent-gitlab-ticketing:1.0.0 .
+```
+
+2. Tag and push to Docker Hub:
+
+```bash
+docker login
+docker tag ai-agent-gitlab-ticketing:1.0.0 habibsyuhada/ai-agent-gitlab-ticketing:latest
+docker push habibsyuhada/ai-agent-gitlab-ticketing:latest
+```
+
+3. Set the Docker Hub image in [`docker-compose.yml`](docker-compose.yml):
+
+```yaml
+image: habibsyuhada/ai-agent-gitlab-ticketing:latest
+```
+
+4. Edit inline environment values in `docker-compose.yml`.
+5. Pull and run:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+6. View logs:
+
+```bash
+docker compose logs -f app
+```
+
+7. Stop:
+
+```bash
+docker compose down
+```
+
+Notes:
+
+- Environment variables are defined directly under `environment` in `docker-compose.yml`.
+- When values change, recreate the service with `docker compose up -d`.
+- `automation-logs` is mounted as a persistent host volume.
+- For long-term production, move sensitive secrets to a secret manager.
+
 ## Troubleshooting
 
 ### Dropdowns Are Not Selected
@@ -184,10 +235,6 @@ npm run cookies:clear
 ### Solve Phase Reports Not Found
 
 Check the automation logs. The solve agent logs the assignee search, visible candidates, ticket IDs, descriptions, requestors, assignees, and statuses. A common cause is a description mismatch between the inserted ticket and the row shown by the helpdesk table.
-
-### Build Warning About Server Actions
-
-Next.js may warn that `experimental.serverActions` is no longer needed. This warning comes from `next.config.mjs` and does not block the build.
 
 ## Project Structure
 

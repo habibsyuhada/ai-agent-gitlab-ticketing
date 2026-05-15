@@ -1,0 +1,25 @@
+services:
+  app:
+    image: habibsyuhada/ai-agent-gitlab-ticketing:latest
+    container_name: ai-agent-gitlab-ticketing-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DEBUG: "false"
+      GITLAB_BASE_URL: "http://your-gitlab-host"
+      GITLAB_TOKEN: "your-gitlab-token"
+      HELPDESK_URL: "https://your-helpdesk-host/helpdesk/it/new_helpdesk"
+      NEXT_PUBLIC_HELPDESK_URL: "https://your-helpdesk-host/helpdesk/it/new_helpdesk"
+      PLAYWRIGHT_BROWSER_PATH: ""
+      OPENAI_BASE_URL: "https://your-openai-compatible-host/v1"
+      OPENAI_API_KEY: "your-openai-api-key"
+      OPENAI_MODEL: "gpt-4o"
+    volumes:
+      - ./automation-logs:/app/automation-logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
